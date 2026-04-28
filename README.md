@@ -1,10 +1,10 @@
-# Work-Stealing Deque Implementation in OCaml 5
+## Work-Stealing Deque Implementation in OCaml 5
 
 An implementation of the Chase-Lev dynamic circular work-stealing deque
 ([SPAA 2005](https://dl.acm.org/doi/10.1145/1073970.1073974)) in OCaml 5,
 together with a parallel task scheduler and benchmarks.
 
-## Repository structure
+### Repository structure
 
 ```
 .
@@ -32,25 +32,30 @@ together with a parallel task scheduler and benchmarks.
 └── dune-project  Dune build configuration
 ```
 
-## Building
+### Building
 
 Requires OCaml 5.4 and opam.
 
+To check for data races, please install a TSAN-instrumented OCaml switch
+and then install dependencies:
 ```bash
-# To check for data races, please install TSAN-instrumented OCaml switch
-# and then install dependencies
 opam switch create test-tsan ocaml-variants.5.4.0+options ocaml-option-tsan
 opam install dune qcheck qcheck-lin qcheck-stm unix
+```
+
+#### Build everything (code, tests etc.)
+
 ```bash
-
-# Build everything
 dune build
+```
 
-# Run tests
+#### Run QCheck tests
+
+```bash
 dune test
 ```
 
-## Running benchmarks
+### Running benchmarks
 
 ```bash
 dune exec bin/fibonacci.exe
@@ -58,13 +63,16 @@ dune exec bin/mergesort.exe
 dune exec bin/map.exe
 ```
 
-## Running tests
+### Running tests individually
+
+#### QCheck-Lin linearizability test
+```bash
+dune exec test/test_deque_qcheck_lin.exe
+```
+
+#### QCheck-STM sequential model test
 
 ```bash
-# QCheck-Lin linearizability test
-dune exec test/test_deque_qcheck_lin.exe
-
-# QCheck-STM sequential model test
 dune exec test/test_deque_qcheck_stm.exe
 ```
 
