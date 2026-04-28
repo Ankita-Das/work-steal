@@ -636,14 +636,16 @@ is approximately \texttt{threshold=1000} for mergesort and
 \texttt{threshold=20} for Fibonacci, confirming that minimum viable task size
 depends heavily on computational intensity.
 
-Given more time, profiling tools for cache and memory analysis would help
-pinpoint threshold tipping points, and additional benchmarks would broaden the
-evaluation. As a natural extension, implementing a shared buffer pool — and
-comparing it against an equivalent Rust implementation using
+With more time, using profiling tools for cache and memory analysis would have
+helped show the details of memory shrinking and expanding for existing
+benchmarks; additional benchmarking programs would have broadened our evaluation.
+We would like to extend this work by implementing a shared buffer pool as
+mentioned in section 4 of \cite{chase2005dynamic}. Comparing such an
+implementation against an equivalent scheduler in Rust using
 \href{https://docs.rs/crossbeam-deque/latest/crossbeam_deque/}{\texttt{crossbeam}}
-or a from-scratch implementation — would help us understand acquire-release semantics
-much better as well as the and the practical differences between
-garbage-collected and manually managed memory models.
+or using our own deque implementation — would help us understand
+acquire-release semantics much better as well as the practical differences between
+garbage-collected and manually-managed memory systems.
 
 % =============================================================================
 \section*{Contributions}
