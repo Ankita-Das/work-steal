@@ -303,7 +303,7 @@ problem that occured in earlier work-stealing algorithms.
 
 The implementation began with translating the code for deque operations
 presented in the \cite{chase2005dynamic} paper from Java to OCaml
-(\href{https://github.com/alinab/fork-cs6868_s26/commit/b7bdeac9167f5fbeaee63e81deceaf0c43733d98}{b7bdeac}).
+(\href{https://github.com/alinab/work-steal/commit/0b615206c09ac43fa386bd210dfe0f8d03ed6ad7}{0b61520}).
 
 The deque stores all items in the active array data structure which is defined
 as an atomic reference as are the top and bottom indices. This is to ensure the
@@ -323,9 +323,9 @@ whichever CAS succeeds first.
 
 Based on the code snippets in the \cite{chase2005dynamic} paper, the circular
 array only stores the log of the size, not the size itself. This makes the growing
-(\href{https://github.com/alinab/fork-cs6868_s26/commit/8324758fc3e51c064bcb5e6a216e97d5cc356c15}{8324758})
+(\href{https://github.com/alinab/work-steal/commit/260420a59b313a634fdcb9496e3df29ce2154f57}{260420a})
 and shrinking
-(\href{https://github.com/alinab/fork-cs6868_s26/commit/a9f0687fc8eb0b61dc2f059683f209be6a223649}{a9f0687})
+(\href{https://github.com/alinab/work-steal/commit/2fe082af60a3d765f1bf0165bd0ab4f0415e6ab5}{2fe082a})
 of the circular array elegant and only requires copying items from the older to
 the expanded or the shrunk array.
 
@@ -339,7 +339,8 @@ expand the array soon after shrinking.
 
 \subsubsection{Scheduler implementation}
 
-The scheduler (\href{https://github.com/alinab/fork-cs6868_s26/blame/work-steal/work-steal/lib/scheduler.ml}{0b98700})
+The scheduler
+(\href{https://github.com/alinab/work-steal/commit/609e0efc2190257ad17efd243f5e00badcbfa5fb}{609e0ef})
 whose constituent types are shown above is a parallel work-stealing
 one where each domain (worker) owns a local double-ended deque of tasks. Worker domains
 push and pop tasks from the bottom of their own deque in a lock-free manner,
@@ -371,7 +372,7 @@ CAS is only invoked during a steal or when the last element of a deque is contes
 
 The QCheck-Lin test involved developing a model using the
 \texttt{Lin\_domain.Make\_internal} functor and
-\href{https://github.com/alinab/fork-cs6868_s26/blame/work-steal/work-steal/test/test_deque_qcheck_lin.ml}{
+\href{https://github.com/alinab/work-steal/commit/72b74275fa8f5eea6dbacc489cae87db9900cfc9}{
 types} for deque commands and results.
 
 The initial model was incorrect as all deque operations were spread across
@@ -387,7 +388,7 @@ when concurrent operations on parallel domains are executed.
 
 Running the test on a TSAN-enhanced opam switch did help trace and pinpoint
 an error (fixed in
-\href{https://github.com/alinab/fork-cs6868_s26/commit/5d917e0d987c3c1a6a507697c65432e02636c1ce}{5d917e0}).
+\href{https://github.com/alinab/work-steal/commit/0ecff4ee7f97eeefe058dd971ea520606c0c3190}{0ecff4e}).
 TSAN was throwing up a data race on the \texttt{push\_bottom} operation. The problem
 was that \texttt{push\_bottom} was reading the \texttt{active\_array}
 i.e. the array backing the deque and potentially growing it. However, a
@@ -401,7 +402,9 @@ new one — never an intermediate state.
 
 \subsubsection{QCheck-STM testing}
 
-The QCheck-STM test required a more careful design than the Lin test because
+The
+\href{https://github.com/alinab/work-steal/commit/6b7536c3ec8f2ec3a34c674229e4d45de016bda4}
+{QCheck-STM} test required a more careful design than the Lin test because
 STM checks exact values against a sequential model rather than just
 linearizability. The sequential model represents the deque as a plain int list
 where the front is the steal end (top index) and the back is the push/pop end
