@@ -135,8 +135,8 @@ let run_experiment ~n ~runs =
     ~policies
     ~run_ws:(fun ~num_workers ~steal_policy ~threshold ->
       run_ws ~num_workers ~steal_policy ~threshold ~arr ~expected)
-    ~run_naive:(fun ~num_workers ->
-      run_naive ~num_workers ~threshold:1000 ~arr ~expected)
+    ~run_naive:(fun ~num_workers ~threshold ->
+      run_naive ~num_workers ~threshold ~arr ~expected)
 
 let () =
   Random.self_init ();
