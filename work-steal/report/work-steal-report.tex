@@ -54,7 +54,7 @@
   \and
   Ankita Das \\ \texttt{cs25s032@cse.iitm.ac.in}
   \and
-  Dhruvanshi \\ \texttt{ee22b143@smail.iitm.ac.in}
+  Dhruvanshi Shah\\ \texttt{ee22b143@smail.iitm.ac.in}
 }
 \date{\today}
 
@@ -639,11 +639,21 @@ depends heavily on computational intensity.
 With more time, using profiling tools for cache and memory analysis would have
 helped show the details of memory shrinking and expanding for existing
 benchmarks; additional benchmarking programs would have broadened our evaluation.
-We would like to extend this work by implementing a shared buffer pool as
-mentioned in section 4 of \cite{chase2005dynamic}. Comparing such an
+
+We have attempted an implementation of where deques are alloted from a shared
+buffer pool as described in section 4 of \cite{chase2005dynamic}. Some initial outputs
+from comparing memory manangement after deque shrinking/growing via the OCaml GC vs
+using a shared buffer memory pool for manually managing deques shrinks/growths
+are here:
+(\href{https://github.com/alinab/work-steal/blob/shared-mem-pool-work/work-steal/outputs/mergesort_shrink_shared0_fixed_workers.png}{a848335}),
+(\href{https://github.com/alinab/work-steal/blob/shared-mem-pool-work/work-steal/outputs/mergesort_shrink_shared0_resize_ops.png}{a848335}),
+(\href{https://github.com/alinab/work-steal/blob/shared-mem-pool-work/work-steal/outputs/mergesort_shrink_shared0_varying_workers.png}{a848335}).
+The outputs show <> . This work has also brought up questions such as the <>
+We stress that this implementation requires refinement and that we
+would like to continue working on this in the near future. Comparing such an
 implementation against an equivalent scheduler in Rust using
 \href{https://docs.rs/crossbeam-deque/latest/crossbeam_deque/}{\texttt{crossbeam}}
-or using our own deque implementation — would help us understand
+or our own deque implementation — would help us understand
 acquire-release semantics much better as well as the practical differences between
 garbage-collected and manually-managed memory systems.
 
@@ -659,9 +669,11 @@ garbage-collected and manually-managed memory systems.
 \toprule
 \textbf{Member} & \textbf{Contribution (\%)} & \textbf{Main responsibilities} \\
 \midrule
-Alina Banerjee  & \% & \\
-Member Two      & \% & \\
-Member Three    & \% & \\
+Alina Banerjee  & 33 \% & deque, circular array, scheduler implementation,
+                          qcheck tests\\
+Ankita Das      & 33 \% & shared pool memory buffer implementation with
+different versions \\ & & of shrinking deque arrays \\
+Dhruvanshi      & 33 \% & benchmarking, plotting and problem results generation\\
 \midrule
 \textbf{Total} & \textbf{100\%} & \\
 \bottomrule
