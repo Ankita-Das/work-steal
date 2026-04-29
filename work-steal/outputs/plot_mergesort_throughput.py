@@ -51,16 +51,28 @@ def add_naive_throughput(rows):
                     break
     return rows
 
+# Clip outlier rows — naive mergesort has some deadlock/livelock runs
+# with avg > 10s which are not meaningful (sequential baseline is ~1.45s)
+OUTLIER_THRESHOLD = 5.0  # seconds — anything above this is a failed run
+
+def clip_outliers(rows):
+    for r in rows:
+        if r['avg'] > OUTLIER_THRESHOLD:
+            r['speedup']    = None
+            r['throughput'] = None
+            r['avg']        = None
+    return rows
+
 rows = parse_results('result-mergesort.txt')
 rows = add_naive_throughput(rows)
+rows = clip_outliers(rows)
 
 workers_list    = sorted(set(r['workers']   for r in rows))
 thresholds_list = sorted(set(r['threshold'] for r in rows))
 policies        = ['random', 'round-robin']
 
-colors  = {'random': '#2563eb', 'round-robin': '#16a34a', '-': '#dc2626'}
-markers = {'random': 'o',       'round-robin': 's',       '-': '^'}
 thresh_colors = {500: '#7c3aed', 1000: '#0891b2', 2000: '#ea580c', 5000: '#b45309'}
+naive_markers = {500: 'o', 1000: 's', 2000: '^', 5000: 'D'}
 
 def get(sched, policy, workers, threshold, field):
     for r in rows:
@@ -73,43 +85,57 @@ def errbars(sched, policy, workers_list, threshold):
     ys   = [get(sched, policy, w, threshold, 'speedup') for w in workers_list]
     sds  = [get(sched, policy, w, threshold, 'sd')      for w in workers_list]
     avgs = [get(sched, policy, w, threshold, 'avg')     for w in workers_list]
-    err  = [sd / avg * sp if avg else 0
+    err  = [sd / avg * sp if (avg and sd and sp) else 0
             for sd, avg, sp in zip(sds, avgs, ys)]
+    # replace None with nan so matplotlib skips those points
+    ys  = [y  if y  is not None else float('nan') for y  in ys]
+    err = [e  if e  is not None else 0            for e  in err]
     return ys, err
 
-fig, axes = plt.subplots(3, 2, figsize=(13, 13))
+fig, axes = plt.subplots(3, 2, figsize=(14, 14))
 fig.suptitle('Parallel Mergesort  n=1,000,000 — Benchmark Summary',
              fontsize=14, fontweight='bold', y=1.01)
 
-# Row 0: speedup vs workers
+# ── Row 0: speedup vs workers ──────────────────────────────────────────────
 for col, policy in enumerate(policies):
     ax = axes[0, col]
+    # work-stealing — one solid line per threshold
     for thresh in thresholds_list:
         ys, err = errbars('ws', policy, workers_list, thresh)
         ax.errorbar(workers_list, ys, yerr=err,
-                    label=f'ws threshold={thresh}',
+                    label=f'ws t={thresh}',
                     color=thresh_colors[thresh], marker='o',
                     linewidth=1.8, capsize=3)
-    ys_n, err_n = errbars('naive', '-', workers_list, thresholds_list[0])
-    ax.errorbar(workers_list, ys_n, yerr=err_n,
-                label='naive', color=colors['-'], marker=markers['-'],
-                linewidth=1.8, linestyle='--', capsize=3)
-    ax.axhline(y=1.0, color='gray', linestyle=':', linewidth=1.2,
+    # naive — one dashed line per threshold
+    for thresh in thresholds_list:
+        ys_n, err_n = errbars('naive', '-', workers_list, thresh)
+        ax.errorbar(workers_list, ys_n, yerr=err_n,
+                    label=f'naive t={thresh}',
+                    color=thresh_colors[thresh], marker=naive_markers[thresh],
+                    linewidth=1.4, linestyle='--', capsize=3,
+                    markerfacecolor='white', markeredgewidth=1.5)
+    ax.axhline(y=1.0, color='gray', linestyle=':', linewidth=1.0,
                label='sequential')
     ax.set_title(f'Speedup vs Workers  ({policy})', fontsize=10)
     ax.set_xlabel('Workers')
     ax.set_xticks(workers_list)
     ax.set_ylabel('Speedup')
-    ax.legend(fontsize=7.5)
+    ax.set_ylim(-0.1, 2.5)
+    ax.legend(fontsize=7, ncol=2)
     ax.grid(True, alpha=0.3)
+    # annotate clipped outliers
+    ax.text(0.98, 0.02,
+            '† naive t=2000 w=2,4 and t=5000 w=4\n  clipped (livelock, avg >5s)',
+            transform=ax.transAxes, fontsize=6.5, color='#dc2626',
+            ha='right', va='bottom')
 
-# Row 1: steal ratio vs workers
+# ── Row 1: steal ratio vs workers (ws only) ────────────────────────────────
 for col, policy in enumerate(policies):
     ax = axes[1, col]
     for thresh in thresholds_list:
         ys = [get('ws', policy, w, thresh, 'steal_pct') for w in workers_list]
         ax.plot(workers_list, ys,
-                label=f'threshold={thresh}',
+                label=f'ws t={thresh}',
                 color=thresh_colors[thresh], marker='o', linewidth=1.8)
     ax.set_title(f'Steal Ratio vs Workers  ({policy})', fontsize=10)
     ax.set_xlabel('Workers')
@@ -118,24 +144,28 @@ for col, policy in enumerate(policies):
     ax.legend(fontsize=8)
     ax.grid(True, alpha=0.3)
 
-# Row 2: throughput vs workers
+# ── Row 2: throughput vs workers ───────────────────────────────────────────
 for col, policy in enumerate(policies):
     ax = axes[2, col]
     for thresh in thresholds_list:
         ys = [get('ws', policy, w, thresh, 'throughput') for w in workers_list]
+        ys = [y if y is not None else float('nan') for y in ys]
         ax.plot(workers_list, ys,
-                label=f'ws threshold={thresh}',
+                label=f'ws t={thresh}',
                 color=thresh_colors[thresh], marker='o', linewidth=1.8)
-    ys_n = [get('naive', '-', w, thresholds_list[0], 'throughput')
-            for w in workers_list]
-    ax.plot(workers_list, ys_n,
-            label='naive', color=colors['-'], marker=markers['-'],
-            linewidth=1.8, linestyle='--')
+    for thresh in thresholds_list:
+        ys_n = [get('naive', '-', w, thresh, 'throughput') for w in workers_list]
+        ys_n = [y if y is not None else float('nan') for y in ys_n]
+        ax.plot(workers_list, ys_n,
+                label=f'naive t={thresh}',
+                color=thresh_colors[thresh], marker=naive_markers[thresh],
+                linewidth=1.4, linestyle='--',
+                markerfacecolor='white', markeredgewidth=1.5)
     ax.set_title(f'Throughput vs Workers  ({policy})', fontsize=10)
     ax.set_xlabel('Workers')
     ax.set_xticks(workers_list)
     ax.set_ylabel('Tasks / second')
-    ax.legend(fontsize=7.5)
+    ax.legend(fontsize=7, ncol=2)
     ax.grid(True, alpha=0.3)
 
 plt.tight_layout()

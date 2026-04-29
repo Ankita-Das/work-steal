@@ -2,10 +2,6 @@ import re
 import numpy as np
 import matplotlib.pyplot as plt
 
-# ---------------------------------------------------------------------------
-# Parse the results file
-# ---------------------------------------------------------------------------
-
 def parse_results(filename):
     rows = []
     with open(filename) as f:
@@ -24,10 +20,10 @@ def parse_results(filename):
             )
             if m:
                 sched, policy, workers, threshold, steal_ratio, avg, sd, speedup = m.groups()
-                sr_match  = re.search(r'\((\d+\.\d+)%\)', steal_ratio)
-                tc_match  = re.search(r'(\d+)/(\d+)',     steal_ratio)
-                sr_pct    = float(sr_match.group(1))  if sr_match  else 0.0
-                task_count = int(tc_match.group(2))   if tc_match  else 0
+                sr_match   = re.search(r'\((\d+\.\d+)%\)', steal_ratio)
+                tc_match   = re.search(r'(\d+)/(\d+)',     steal_ratio)
+                sr_pct     = float(sr_match.group(1))  if sr_match else 0.0
+                task_count = int(tc_match.group(2))    if tc_match else 0
                 rows.append({
                     'scheduler':  sched,
                     'policy':     policy,
@@ -43,10 +39,8 @@ def parse_results(filename):
     return rows
 
 def add_naive_throughput(rows):
-    # naive rows have task_count=0 — fill from ws-random at same workers/threshold
     for r in rows:
         if r['scheduler'] == 'naive' and r['task_count'] == 0:
-            # find matching ws row for task count
             for ref in rows:
                 if (ref['scheduler'] == 'ws'
                         and ref['policy'] == 'random'
@@ -60,17 +54,12 @@ def add_naive_throughput(rows):
 rows = parse_results('result-fibonacci.txt')
 rows = add_naive_throughput(rows)
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
 workers_list    = sorted(set(r['workers']   for r in rows))
 thresholds_list = sorted(set(r['threshold'] for r in rows))
 policies        = ['random', 'round-robin']
 
-colors  = {'random': '#2563eb', 'round-robin': '#16a34a', '-': '#dc2626'}
-markers = {'random': 'o',       'round-robin': 's',       '-': '^'}
 thresh_colors = {20: '#7c3aed', 25: '#0891b2', 30: '#ea580c'}
+naive_markers = {20: 'o', 25: 's', 30: '^'}
 
 def get(sched, policy, workers, threshold, field):
     for r in rows:
@@ -87,48 +76,43 @@ def errbars(sched, policy, workers_list, threshold):
             for sd, avg, sp in zip(sds, avgs, ys)]
     return ys, err
 
-# ---------------------------------------------------------------------------
-# Combined figure  (3 rows x 2 cols)
-#
-#  [A] speedup vs workers (random)      [B] speedup vs workers (round-robin)
-#  [C] steal ratio vs workers (random)  [D] steal ratio vs workers (rr)
-#  [E] throughput vs workers (random)   [F] throughput vs workers (rr)
-# ---------------------------------------------------------------------------
-
-fig, axes = plt.subplots(3, 2, figsize=(13, 13))
+fig, axes = plt.subplots(3, 2, figsize=(14, 14))
 fig.suptitle('Parallel Fibonacci  fib(38) — Benchmark Summary',
              fontsize=14, fontweight='bold', y=1.01)
 
-# --- Row 0: speedup vs workers --------------------------------------------
+# ── Row 0: speedup vs workers ──────────────────────────────────────────────
 for col, policy in enumerate(policies):
     ax = axes[0, col]
+    # work-stealing — one solid line per threshold
     for thresh in thresholds_list:
         ys, err = errbars('ws', policy, workers_list, thresh)
         ax.errorbar(workers_list, ys, yerr=err,
-                    label=f'ws threshold={thresh}',
+                    label=f'ws t={thresh}',
                     color=thresh_colors[thresh], marker='o',
                     linewidth=1.8, capsize=3)
-    ys_n, err_n = errbars('naive', '-', workers_list, thresholds_list[0])
-    ax.errorbar(workers_list, ys_n, yerr=err_n,
-                label='naive',
-                color=colors['-'], marker=markers['-'],
-                linewidth=1.8, linestyle='--', capsize=3)
-    ax.plot(workers_list, workers_list,
-            color='gray', linestyle=':', linewidth=1.2, label='ideal')
+    # naive — one dashed line per threshold
+    for thresh in thresholds_list:
+        ys_n, err_n = errbars('naive', '-', workers_list, thresh)
+        ax.errorbar(workers_list, ys_n, yerr=err_n,
+                    label=f'naive t={thresh}',
+                    color=thresh_colors[thresh], marker=naive_markers[thresh],
+                    linewidth=1.4, linestyle='--', capsize=3,
+                    markerfacecolor='white', markeredgewidth=1.5)
     ax.set_title(f'Speedup vs Workers  ({policy})', fontsize=10)
     ax.set_xlabel('Workers')
     ax.set_xticks(workers_list)
     ax.set_ylabel('Speedup')
-    ax.legend(fontsize=7.5)
+    ax.set_ylim(0, 7)
+    ax.legend(fontsize=7, ncol=2)
     ax.grid(True, alpha=0.3)
 
-# --- Row 1: steal ratio vs workers ----------------------------------------
+# ── Row 1: steal ratio vs workers (ws only) ────────────────────────────────
 for col, policy in enumerate(policies):
     ax = axes[1, col]
     for thresh in thresholds_list:
         ys = [get('ws', policy, w, thresh, 'steal_pct') for w in workers_list]
         ax.plot(workers_list, ys,
-                label=f'threshold={thresh}',
+                label=f'ws t={thresh}',
                 color=thresh_colors[thresh], marker='o', linewidth=1.8)
     ax.set_title(f'Steal Ratio vs Workers  ({policy})', fontsize=10)
     ax.set_xlabel('Workers')
@@ -137,29 +121,30 @@ for col, policy in enumerate(policies):
     ax.legend(fontsize=8)
     ax.grid(True, alpha=0.3)
 
-# --- Row 2: throughput vs workers -----------------------------------------
+# ── Row 2: throughput vs workers ───────────────────────────────────────────
 for col, policy in enumerate(policies):
     ax = axes[2, col]
+    # work-stealing — one solid line per threshold
     for thresh in thresholds_list:
         ys = [get('ws', policy, w, thresh, 'throughput') for w in workers_list]
         ax.plot(workers_list, ys,
-                label=f'ws threshold={thresh}',
+                label=f'ws t={thresh}',
                 color=thresh_colors[thresh], marker='o', linewidth=1.8)
-    # naive throughput
-    ys_n = [get('naive', '-', w, thresholds_list[1], 'throughput')
-            for w in workers_list]
-    ax.plot(workers_list, ys_n,
-            label='naive',
-            color=colors['-'], marker=markers['-'],
-            linewidth=1.8, linestyle='--')
+    # naive — one dashed line per threshold
+    for thresh in thresholds_list:
+        ys_n = [get('naive', '-', w, thresh, 'throughput') for w in workers_list]
+        ax.plot(workers_list, ys_n,
+                label=f'naive t={thresh}',
+                color=thresh_colors[thresh], marker=naive_markers[thresh],
+                linewidth=1.4, linestyle='--',
+                markerfacecolor='white', markeredgewidth=1.5)
     ax.set_title(f'Throughput vs Workers  ({policy})', fontsize=10)
     ax.set_xlabel('Workers')
     ax.set_xticks(workers_list)
     ax.set_ylabel('Tasks / second')
-    ax.legend(fontsize=7.5)
+    ax.legend(fontsize=7, ncol=2)
     ax.grid(True, alpha=0.3)
 
-# ---------------------------------------------------------------------------
 plt.tight_layout()
 plt.savefig('fib_combined_throughput.png',
             dpi=150, bbox_inches='tight')

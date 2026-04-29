@@ -39,6 +39,7 @@ def parse_results(filename):
     return rows
 
 def add_naive_throughput(rows):
+    # naive task_count comes from matching ws-random row at same workers+threshold
     for r in rows:
         if r['scheduler'] == 'naive' and r['task_count'] == 0:
             for ref in rows:
@@ -60,7 +61,12 @@ policies        = ['random', 'round-robin']
 
 colors  = {'random': '#2563eb', 'round-robin': '#16a34a', '-': '#dc2626'}
 markers = {'random': 'o',       'round-robin': 's',       '-': '^'}
+
+# one colour per threshold for both ws and naive
 thresh_colors = {500: '#7c3aed', 1000: '#0891b2', 2000: '#ea580c', 5000: '#b45309'}
+
+# naive uses same colours but dashed lines and hollow markers
+naive_markers = {500: 'o', 1000: 's', 2000: '^', 5000: 'D'}
 
 def get(sched, policy, workers, threshold, field):
     for r in rows:
@@ -77,39 +83,45 @@ def errbars(sched, policy, workers_list, threshold):
             for sd, avg, sp in zip(sds, avgs, ys)]
     return ys, err
 
-fig, axes = plt.subplots(3, 2, figsize=(13, 13))
+fig, axes = plt.subplots(3, 2, figsize=(14, 14))
 fig.suptitle('Parallel Prime Map  n=1,000,000 — Benchmark Summary',
              fontsize=14, fontweight='bold', y=1.01)
 
-# Row 0: speedup vs workers
+# ── Row 0: speedup vs workers ──────────────────────────────────────────────
 for col, policy in enumerate(policies):
     ax = axes[0, col]
+    # work-stealing — one line per threshold
     for thresh in thresholds_list:
         ys, err = errbars('ws', policy, workers_list, thresh)
         ax.errorbar(workers_list, ys, yerr=err,
-                    label=f'ws threshold={thresh}',
+                    label=f'ws t={thresh}',
                     color=thresh_colors[thresh], marker='o',
                     linewidth=1.8, capsize=3)
-    ys_n, err_n = errbars('naive', '-', workers_list, thresholds_list[0])
-    ax.errorbar(workers_list, ys_n, yerr=err_n,
-                label='naive', color=colors['-'], marker=markers['-'],
-                linewidth=1.8, linestyle='--', capsize=3)
+    # naive — one line per threshold (dashed, hollow markers)
+    for thresh in thresholds_list:
+        ys_n, err_n = errbars('naive', '-', workers_list, thresh)
+        ax.errorbar(workers_list, ys_n, yerr=err_n,
+                    label=f'naive t={thresh}',
+                    color=thresh_colors[thresh], marker=naive_markers[thresh],
+                    linewidth=1.4, linestyle='--', capsize=3,
+                    markerfacecolor='white', markeredgewidth=1.5)
     ax.plot(workers_list, workers_list,
-            color='gray', linestyle=':', linewidth=1.2, label='ideal')
+            color='gray', linestyle=':', linewidth=1.0, label='ideal')
     ax.set_title(f'Speedup vs Workers  ({policy})', fontsize=10)
     ax.set_xlabel('Workers')
     ax.set_xticks(workers_list)
     ax.set_ylabel('Speedup')
-    ax.legend(fontsize=7.5)
+    ax.legend(fontsize=7, ncol=2)
     ax.grid(True, alpha=0.3)
+    ax.set_ylim(0, 7)  # cap y-axis — ideal line otherwise dominates
 
-# Row 1: steal ratio vs workers
+# ── Row 1: steal ratio vs workers (ws only — naive has no steal) ───────────
 for col, policy in enumerate(policies):
     ax = axes[1, col]
     for thresh in thresholds_list:
         ys = [get('ws', policy, w, thresh, 'steal_pct') for w in workers_list]
         ax.plot(workers_list, ys,
-                label=f'threshold={thresh}',
+                label=f'ws t={thresh}',
                 color=thresh_colors[thresh], marker='o', linewidth=1.8)
     ax.set_title(f'Steal Ratio vs Workers  ({policy})', fontsize=10)
     ax.set_xlabel('Workers')
@@ -118,24 +130,28 @@ for col, policy in enumerate(policies):
     ax.legend(fontsize=8)
     ax.grid(True, alpha=0.3)
 
-# Row 2: throughput vs workers
+# ── Row 2: throughput vs workers ───────────────────────────────────────────
 for col, policy in enumerate(policies):
     ax = axes[2, col]
+    # work-stealing — one line per threshold
     for thresh in thresholds_list:
         ys = [get('ws', policy, w, thresh, 'throughput') for w in workers_list]
         ax.plot(workers_list, ys,
-                label=f'ws threshold={thresh}',
+                label=f'ws t={thresh}',
                 color=thresh_colors[thresh], marker='o', linewidth=1.8)
-    ys_n = [get('naive', '-', w, thresholds_list[0], 'throughput')
-            for w in workers_list]
-    ax.plot(workers_list, ys_n,
-            label='naive', color=colors['-'], marker=markers['-'],
-            linewidth=1.8, linestyle='--')
+    # naive — one line per threshold (dashed, hollow markers)
+    for thresh in thresholds_list:
+        ys_n = [get('naive', '-', w, thresh, 'throughput') for w in workers_list]
+        ax.plot(workers_list, ys_n,
+                label=f'naive t={thresh}',
+                color=thresh_colors[thresh], marker=naive_markers[thresh],
+                linewidth=1.4, linestyle='--',
+                markerfacecolor='white', markeredgewidth=1.5)
     ax.set_title(f'Throughput vs Workers  ({policy})', fontsize=10)
     ax.set_xlabel('Workers')
     ax.set_xticks(workers_list)
     ax.set_ylabel('Tasks / second')
-    ax.legend(fontsize=7.5)
+    ax.legend(fontsize=7, ncol=2)
     ax.grid(True, alpha=0.3)
 
 plt.tight_layout()
