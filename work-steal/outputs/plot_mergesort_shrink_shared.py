@@ -268,7 +268,7 @@ def fig_fixed_workers(idx, shrink_policies, pool_modes, sizes, size_ranks,
     colors  = [_shrink_color(s, extra_colors) for s, _, _  in combos]
     hatches = ["//" if p == "pool" else ""    for _, p, _  in combos]
     alphas  = [_size_visuals(size_ranks[sz])[0] for _, _, sz in combos]
-    xlabels = [f"\n{sz}" for s, p, sz in combos]
+    xlabels = [f"{s}\n{p}\nsz={sz}" for s, p, sz in combos]
 
     for i, (field, ylabel, title) in enumerate(metrics):
         ax = axes.flatten()[i]
