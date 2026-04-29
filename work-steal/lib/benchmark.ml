@@ -76,22 +76,21 @@ let run_sections ~runs ~seq_time ~worker_counts ~thresholds ~policies
     Printf.printf "%s\n" (String.make 88 '-')
   ) policies;
 
+
   (* naive — one section, no steal policy *)
   Printf.printf "\n=== Naive shared-queue scheduler ===\n%!";
   print_header ();
   List.iter (fun w ->
-    Printf.printf "  running naive workers=%d...\n%!" w;
+  List.iter (fun t ->
+    Printf.printf "  running naive workers=%d threshold=%d...\n%!" w t;
     let naive_times = Array.make runs 0.0 in
     for i = 0 to runs - 1 do
-      naive_times.(i) <- run_naive ~num_workers:w
+      naive_times.(i) <- run_naive ~num_workers:w ~threshold:t
     done;
     let avg_time_n = mean naive_times in
     let sd_time_n  = std_dev naive_times in
-    List.iter (fun t ->
-      print_row "naive" "-" w t "-"
-        avg_time_n sd_time_n (seq_time /. avg_time_n) 0.0
-        (* throughput=0.0 for naive — computed in plotting script
-           from ws task_count at same workers/threshold *)
-    ) thresholds
+    print_row "naive" "-" w t "-"
+      avg_time_n sd_time_n (seq_time /. avg_time_n) 0.0
+   ) thresholds
   ) worker_counts;
   Printf.printf "%s\n" (String.make 100 '-')

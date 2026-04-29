@@ -14,6 +14,5 @@ val run_sections :
   policies:Scheduler.steal_policy list ->
   run_ws:(num_workers:int -> steal_policy:Scheduler.steal_policy
           -> threshold:int -> Scheduler.stats * float) ->
-  run_naive:(num_workers:int -> float) ->
+  run_naive:(num_workers:int -> threshold:int -> float) ->
   unit
-
