@@ -63,7 +63,7 @@ def clip_outliers(rows):
             r['avg']        = None
     return rows
 
-rows = parse_results('result-mergesort2.txt')
+rows = parse_results('result-mergesort.txt')
 rows = add_naive_throughput(rows)
 rows = clip_outliers(rows)
 
@@ -169,7 +169,7 @@ for col, policy in enumerate(policies):
     ax.grid(True, alpha=0.3)
 
 plt.tight_layout()
-plt.savefig('mergesort_combined_throughput2.png',
+plt.savefig('mergesort_combined_throughput.png',
             dpi=150, bbox_inches='tight')
 plt.close()
-print('Saved mergesort_combined_throughput2.png')
+print('Saved mergesort_combined_throughput.png')
